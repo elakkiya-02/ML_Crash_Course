@@ -1,0 +1,155 @@
+#FEATURE CROSS
+feature_columns = []
+latitude= tf.feature_column.numeric_column("latitude")
+feature_columns.append(latitude)
+longitude = tf.feature_column.numeric_column("longitude")
+feature_columns.append(longitude)
+
+fp_feature_layer = tf.keras.layers.DenseFeatures(features_columns)
+====================================
+TO CREATE A MODEL WITH FEATURE_LAYER
+====================================
+
+def create_model(my_learning_rate, feature_layer):
+	#simple Sequential model
+	model = tf.keras.models.Sequential()
+	#add layer
+	model.add(feature_layer)
+	#add linear layer for a simple linear regressor
+	model.add(tf.keras.layers.Dense(unit = 1, 
+									input_shape=(1,)))
+	#compile the model
+	model.compile(optimizer =tf.keras.optimizers.RMSprop(learning_rate = my_learning_rate),
+					loss="mean_squared_error",
+					metrics=[tf.keras.metrics.RootMeanSquaredError()])
+	
+	return model
+	
+TO TRAIN THE MODEL
+def train_model(model, dataset, epochs, batch_size, label_name):
+	features = {name:np.array(value) for name, value in dataset.items()}
+	label = np.array(features.pop(label_name))
+	
+	history = model.fit(x= features,
+						y= label`,
+						batch_size= batch_Size,
+						epochs= epochs,
+						shuffle= True)
+	epochs = history.epoch
+	
+	hist =  pd.DataFrame(history.history)
+	rmse = hist["root_mean_squared_error"]
+	
+	return epochs, rmse
+
+TO PLOT THE LOSS CURVE
+
+def plot_loss_curve(epochs, rmse):
+	plt.figure()
+	plt.xlabel("Epoch")
+	plt.ylabel("RMSE")
+	
+	plt.plot(epochs, rmse, label = "Loss")
+	plt.legend()
+	plt.ylim([rmse.min()*0.94, rmse.max()*1.05])
+	plt.show()
+	
+	
+learning_rate = 0.05
+epochs = 30
+batch_size = 100 
+label_name = "median_house_value"
+
+my_model = create_model(learning_rate, fp_feature_layer)
+train_model(my_model, df, epochs, batch_size, label_name)
+plot_loss_curve(epochs,rmse)
+
+//Evaluation of test set with the model
+test_features = {name:np.array(value) for name, value test_df.items()}
+test_label = np.array(test_features.pop(label_name))
+my_model.evaluate(x=test_features,
+				y=test_label,
+				batch_size=batch_size)
+				
+				
+				
+
+====================================
+#BUCKETIZED
+====================================
+resolution_in_degress = 1.0
+
+feature_columns= []
+
+latitude_num = tf.feature_column.numeric_column('latitude')
+latitude_boundary = list(np.arange(int(min(train_df['latitude'])),
+					int(max(train_df['latitude'])),
+					resolution_in_degress)))
+
+latitude = tf.feature_column.bucketized_column(latitude_num, 
+											latitude_boundary)
+feature_columns.append(latitude)
+
+longitude_num = tf.feature_column('longitude')
+longitude_boundary = list(np.arange(int(min(train_df['longitude'])),
+						int(max(train_df['longitude'])),
+						resolution_in_degress))
+longitude = tf.feature_column.bucketized_column(longitude_num,
+												longitude_boundary)
+feature_columns.append(longitude)
+
+
+buckets_feature_layer = tf.keras.layers.DenseFeatures(feature_columns)
+
+
+learning_rate =0.04
+epochs = 35
+
+buck_model = create_model(learning_rate, buckets_feature_layer)
+epochs, rmse = train_model(buck_model, df, epochs, batch_size, label_name)
+plot_loss_curve(epochs, rmse)
+
+buck_model.evaluate(x=test_features,
+					y=test_label,
+					batch_size=batch_size)
+					
+					
+====================================					
+#CROSS FEATURES
+====================================
+resolution_in_degress = 1.0
+feature_columns = []
+
+latitude_num = tf.feature_column.numeric_column('latitude')
+latitude_boundary = list(np.arange(int(min(train_df['latitude'])),
+					int(max(train_df['latitude']])),
+					resolution_in_degress))
+latitude = tf.feature_column.bucketized_column(latitude_num,
+												latitude_boundary)
+feature_columns.append(latitude)
+
+longitude_num = tf.feature_column.numeric_column('longitude')
+longitude_boundary = list(np.arange(min(train_df['longitude']),
+								max(train_df['longitude']),
+								resolution_in_degress))
+longitude = tf.feature_column.bucketized_column(longitude_num,
+													longitude_boundary)
+feature_columns.append(longitude)
+
+latitude_x_longitude = tf.feature_column.crossed_column([latitude, longitude],
+														hash_bucket_size = 100)
+crossed_feature = tf.feature_column.indicator_column(latitude_x_longitude)
+feature_columns.append(crossed_feature)
+
+feature_cross_feature_layer = tf.keras.layers.DenseFeatures(feature_columns)
+
+learning_rate = 0.04
+epochs = 35
+
+cross_model = create_model(learning_rate, feature_cross_feature_layer)
+epochs, rmse = train_model(cross_model, train_df, epochs, batch_size, label_name)
+plot_loss_curve(epochs, rmse)
+
+cross_model.evaluate(x=test_features,
+					y=test_label,
+					batch_size=batch_size)
